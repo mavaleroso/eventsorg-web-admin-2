@@ -13,7 +13,11 @@ import { Dialog } from '@headlessui/react';
 import toast, { Toaster } from 'react-hot-toast';
 import SlideOvers from '@/components/SildeOvers';
 import ConfirmDialog from '@/components/ConfirmDialog';
+// @ts-ignore
 import QRCode from 'qrcode.react';
+// @ts-ignore
+import store from 'store';
+import { useRouter } from 'next/navigation';
 import { toPng } from 'html-to-image';
 
 const cities = [
@@ -119,6 +123,8 @@ interface interUserFormData {
 }
 
 const UsersPage = () => {
+  const router = useRouter();
+  const token = store.get('accessToken');
   const [tableData, setTableData] = useState([]);
   const [tableMetaData, setTableMetaData] = useState();
   const [loading, setLoading] = useState(false);
@@ -149,6 +155,12 @@ const UsersPage = () => {
     limit: 10,
     page: 1,
   });
+
+  useEffect(() => {
+    if (!token) {
+      router.push('/user/login');
+    }
+  }, []);
 
   const initialFormData: interUserFormData = {
     birthdate: '',
@@ -755,7 +767,12 @@ const UsersPage = () => {
         <Breadcrumb pageName="Users" />
         <div className="rounded-sm border border-stroke bg-white px-5 pb-2.5 pt-6 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5 xl:pb-1">
           <div className="max-w-full overflow-x-auto">
-            <Modal modalState={modalState} modalFn={handleModal} modalWidth={'w-[800px]'}>
+            <Modal
+              modalState={modalState}
+              modalFn={handleModal}
+              modalWidth={'w-[800px]'}
+              close={true}
+            >
               <Dialog.Title
                 as="h3"
                 className="text-lg font-medium leading-6 text-black dark:text-white mb-5"
@@ -1239,7 +1256,12 @@ const UsersPage = () => {
                 </div>
               </form>
             </Modal>
-            <Modal modalState={qrModalState} modalFn={handleQrModal} modalWidth={'w-full max-w-sm'}>
+            <Modal
+              modalState={qrModalState}
+              modalFn={handleQrModal}
+              modalWidth={'w-full max-w-sm'}
+              close={true}
+            >
               <Dialog.Title
                 as="h1"
                 className="text-title-lg text-center font-bold leading-6 text-black dark:text-white "

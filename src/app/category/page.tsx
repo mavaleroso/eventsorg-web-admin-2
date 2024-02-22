@@ -19,6 +19,9 @@ import toast, { Toaster } from 'react-hot-toast';
 import SlideOvers from '@/components/SildeOvers';
 import moment from 'moment';
 import ConfirmDialog from '@/components/ConfirmDialog';
+// @ts-ignore
+import store from 'store';
+import { useRouter } from 'next/navigation';
 
 const categoryFormSchema = z.object({
   name: z.string().min(1, {
@@ -37,6 +40,8 @@ interface interCategoryFormData {
 }
 
 const CategoryPage = () => {
+  const router = useRouter();
+  const token = store.get('accessToken');
   const [tableData, setTableData] = useState([]);
   const [tableMetaData, setTableMetaData] = useState();
   const [loading, setLoading] = useState(false);
@@ -50,6 +55,12 @@ const CategoryPage = () => {
     limit: 10,
     page: 1,
   });
+
+  useEffect(() => {
+    if (!token) {
+      router.push('/user/login');
+    }
+  }, []);
 
   const columns = [
     {
@@ -337,7 +348,12 @@ const CategoryPage = () => {
         <Breadcrumb pageName="Category" />
         <div className="rounded-sm border border-stroke bg-white px-5 pb-2.5 pt-6 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5 xl:pb-1">
           <div className="max-w-full overflow-x-auto">
-            <Modal modalState={modalState} modalFn={handleModal} modalWidth={'w-full max-w-md'}>
+            <Modal
+              modalState={modalState}
+              modalFn={handleModal}
+              modalWidth={'w-full max-w-md'}
+              close={true}
+            >
               <Dialog.Title
                 as="h3"
                 className="text-lg font-medium leading-6 text-black dark:text-white mb-5"

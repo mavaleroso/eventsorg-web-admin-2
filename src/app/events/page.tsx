@@ -11,6 +11,8 @@ import moment from 'moment';
 import { Dialog } from '@headlessui/react';
 import toast, { Toaster } from 'react-hot-toast';
 import ConfirmDialog from '@/components/ConfirmDialog';
+// @ts-ignore
+import store from 'store';
 import { useRouter } from 'next/navigation';
 
 const userFormSchema = z.object({
@@ -37,6 +39,7 @@ interface interEventFormData {
 
 const EventsPage = () => {
   const router = useRouter();
+  const token = store.get('accessToken');
   const [tableData, setTableData] = useState([]);
   const [tableMetaData, setTableMetaData] = useState();
   const [loading, setLoading] = useState(false);
@@ -50,6 +53,12 @@ const EventsPage = () => {
     limit: 10,
     page: 1,
   });
+
+  useEffect(() => {
+    if (!token) {
+      router.push('/user/login');
+    }
+  }, []);
 
   const initialFormData: interEventFormData = {
     name: '',
@@ -293,7 +302,12 @@ const EventsPage = () => {
         <Breadcrumb pageName="Events" />
         <div className="rounded-sm border border-stroke bg-white px-5 pb-2.5 pt-6 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5 xl:pb-1">
           <div className="max-w-full overflow-x-auto">
-            <Modal modalState={modalState} modalFn={handleModal} modalWidth={'w-full max-w-md'}>
+            <Modal
+              modalState={modalState}
+              modalFn={handleModal}
+              modalWidth={'w-full max-w-md'}
+              close={true}
+            >
               <Dialog.Title
                 as="h3"
                 className="text-lg font-medium leading-6 text-black dark:text-white mb-5"

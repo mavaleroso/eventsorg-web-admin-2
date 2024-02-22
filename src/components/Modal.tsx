@@ -7,16 +7,17 @@ type ModalProps = {
   modalFn: (params: boolean) => void;
   children?: ReactNode;
   modalWidth: string;
+  close: boolean;
 };
 
-const Modal = ({ modalState, modalFn, children, modalWidth }: ModalProps) => {
+const Modal = ({ modalState, modalFn, children, modalWidth, close }: ModalProps) => {
   const closeModal = () => {
     modalFn(false);
   };
   return (
     <>
       <Transition appear show={modalState} as={Fragment}>
-        <Dialog as="div" className="relative z-999 " onClose={closeModal}>
+        <Dialog as="div" className="relative z-999 " onClose={() => (close ? closeModal() : null)}>
           <Transition.Child
             as={Fragment}
             enter="ease-out duration-300"

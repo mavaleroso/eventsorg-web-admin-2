@@ -5,16 +5,29 @@ import Breadcrumb from '@/components/Breadcrumbs/Breadcrumb';
 import { useEffect, useState } from 'react';
 import Table from '@/components/Table';
 import { getAttendance } from '@/services/attendance/api';
+import moment from 'moment';
+import { getEvents } from '@/services/events/api';
+// @ts-ignore
+import store from 'store';
+import { useRouter } from 'next/navigation';
 
 const AttendancePage = () => {
+  const router = useRouter();
+  const token = store.get('accessToken');
   const [tableData, setTableData] = useState([]);
   const [tableMetaData, setTableMetaData] = useState();
   const [loading, setLoading] = useState(false);
-  const [modalState, setModalState] = useState(false);
+  const [events, setEvents] = useState([]);
   const [formFilterData, setFormFilterData] = useState({
     limit: 10,
     page: 1,
   });
+
+  useEffect(() => {
+    if (!token) {
+      router.push('/user/login');
+    }
+  }, []);
 
   const columns = [
     {
@@ -28,28 +41,48 @@ const AttendancePage = () => {
       title: 'Stats',
       index: 'status',
       render: (dom: any) => {
-        return <h5 className="font-medium text-black dark:text-white">${dom || '-'}</h5>;
+        return <h5 className="font-medium text-black dark:text-white">{dom || '-'}</h5>;
       },
     },
     {
       title: 'Nickname',
       index: 'nickname',
       render: (dom: any) => {
-        return <h5 className="font-medium text-black dark:text-white">${dom || '-'}</h5>;
+        return <h5 className="font-medium text-black dark:text-white">{dom || '-'}</h5>;
       },
     },
     {
       title: 'Arrived',
-      index: 'arrived',
+      index: 'checkin_time',
       render: (dom: any) => {
-        return <h5 className="font-medium text-black dark:text-white">${dom || '-'}</h5>;
+        return <h5 className="font-medium text-black dark:text-white">{dom || '-'}</h5>;
       },
     },
   ];
 
   useEffect(() => {
-    handleGetAttendance(formFilterData);
+    // handleGetAttendance(formFilterData);
+    handleGetEvents({
+      start_date: moment().format('YYYY-MM-DD'),
+      end_date: moment().format('YYYY-MM-DD'),
+    });
   }, []);
+
+  const handleGetEvents = async (params: any) => {
+    try {
+      let res = await getEvents(params);
+      setEvents(res?.data?.data);
+
+      if (res?.data?.data) {
+        handleGetAttendance({
+          ...formFilterData,
+          eventId: res?.data?.data[0]?.id,
+        });
+      }
+    } catch (error) {
+      console.log('Fetch events error: ', error);
+    }
+  };
 
   const handleGetAttendance = async (params: any) => {
     setLoading(true);
@@ -78,10 +111,6 @@ const AttendancePage = () => {
     setLoading(false);
   };
 
-  const handleModal = (state: boolean) => {
-    setModalState(state);
-  };
-
   return (
     <DefaultLayout>
       <div className="mx-auto max-w-7xl">
@@ -89,10 +118,20 @@ const AttendancePage = () => {
         <div className="rounded-sm border border-stroke bg-white px-5 pb-2.5 pt-6 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5 xl:pb-1">
           <div className="max-w-full overflow-x-auto">
             <select
-              name=""
-              id=""
+              onChange={(e: any) => {
+                handleGetAttendance({
+                  ...formFilterData,
+                  eventId: e.target.value,
+                });
+              }}
               className="border border-slate-400 rounded-lg w-full px-4 py-2 my-3"
-            ></select>
+            >
+              {events?.map((e: any) => (
+                <option className="text-center" key={e.id} value={e.id}>
+                  {e.name}
+                </option>
+              ))}
+            </select>
             <Table
               columns={columns}
               tableData={tableData}
