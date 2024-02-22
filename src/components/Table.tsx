@@ -55,14 +55,14 @@ const Table = ({ columns, tableData, metaData, loading, tableFn }: tableProps) =
           ))}
         </tbody>
       </table>
-      {/* pagination */}
       <div className="flex items-center justify-end gap-2 p-4">
         <span>
           {metaData?.from} - {metaData?.to} of {metaData?.total} items
         </span>
         <span className="flex items-center gap-1">
-          {metaData?.links.map((l: any) => (
+          {metaData?.links.map((l: any, i: any) => (
             <button
+              key={i}
               onClick={() => {
                 if (l.label.includes('Previous')) {
                   handleChange(metaData.per_page, metaData.current_page - 1);
@@ -87,7 +87,7 @@ const Table = ({ columns, tableData, metaData, loading, tableFn }: tableProps) =
         </span>
         <span>
           <select
-            className="p-2 rounded text-sm"
+            className="text-sm w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
             onChange={(e) => {
               handleChange(Number(e.target.value), 1);
             }}
