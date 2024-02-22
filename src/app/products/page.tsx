@@ -1,319 +1,913 @@
-import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
-import Image from "next/image";
-import { Metadata } from "next";
-import DefaultLayout from "@/components/Layouts/DefaultLayout";
+'use client';
 
-export const metadata: Metadata = {
-  title: "Next.js Settings | TailAdmin - Next.js Dashboard Template",
-  description:
-    "This is Next.js Settings page for TailAdmin - Next.js Tailwind CSS Admin Dashboard Template",
-};
+import { Metadata } from 'next';
+import DefaultLayout from '@/components/Layouts/DefaultLayout';
+import Breadcrumb from '@/components/Breadcrumbs/Breadcrumb';
+import { ChangeEvent, Fragment, useEffect, useRef, useState } from 'react';
+import Table from '@/components/Table';
+import { getUsers } from '@/services/users/api';
+import Modal from '@/components/Modal';
+import flatpickr from 'flatpickr';
+import { Combobox, Transition } from '@headlessui/react';
+import { CheckIcon, ChevronUpDownIcon } from '@heroicons/react/20/solid';
+import { ZodError, z } from 'zod';
+import { getProducts } from '@/services/products/api';
+// export const metadata: Metadata = {
+//   title: "Events Org | Users",
+// };
 
-const Settings = () => {
+const cities = [
+  { label: 'Bacoor', value: 'Bacoor' },
+  { label: 'Bagong Pag-Asa', value: 'Bagong Pag-Asa' },
+  { label: 'Baclaran', value: 'Baclaran' },
+  { label: 'Bagong Silangan', value: 'Bagong Silangan' },
+  { label: 'Bagumbayan', value: 'Bagumbayan' },
+  {
+    label: 'Banco Filipino International Village',
+    value: 'Banco Filipino International Village',
+  },
+  { label: 'Bayanan', value: 'Bayanan' },
+  { label: 'Bel-Air', value: 'Bel-Air' },
+  { label: 'Bignay', value: 'Bignay' },
+  { label: 'Caloocan City', value: 'Caloocan City' },
+  { label: 'Canagatan', value: 'Canagatan' },
+  { label: 'Central Signal Village', value: 'Central Signal Village' },
+  { label: 'Parañaque', value: 'Parañaque' },
+  { label: 'Davao', value: 'Davao' },
+  { label: 'Don Bosco', value: 'Don Bosco' },
+  { label: 'General Mariano Alvarez', value: 'General Mariano Alvarez' },
+  { label: 'Karuhatan', value: 'Karuhatan' },
+  { label: 'Las Piñas City', value: 'Las Piñas City' },
+  { label: 'Lower Bicutan', value: 'Lower Bicutan' },
+  { label: 'Malabon', value: 'Malabon' },
+  { label: 'Malate', value: 'Malate' },
+  { label: 'Mandaluyong City', value: 'Mandaluyong City' },
+  { label: 'Manila', value: 'Manila' },
+  { label: 'Marikina Heights', value: 'Marikina Heights' },
+  { label: 'Navotas', value: 'Navotas' },
+  { label: 'Paco', value: 'Paco' },
+  { label: 'Pandacan', value: 'Pandacan' },
+  { label: 'Pansol', value: 'Pansol' },
+  { label: 'Pasay City', value: 'Pasay City' },
+  { label: 'Pasig City', value: 'Pasig City' },
+  { label: 'Pateros', value: 'Pateros' },
+  { label: 'Payatas', value: 'Payatas' },
+  { label: 'Pinyahan', value: 'Pinyahan' },
+  { label: 'Poblacion', value: 'Poblacion' },
+  { label: 'Putatan', value: 'Putatan' },
+  { label: 'Quezon City', value: 'Quezon City' },
+  { label: 'San Andres', value: 'San Andres' },
+  { label: 'San Antonio', value: 'San Antonio' },
+  { label: 'San Isidro', value: 'San Isidro' },
+  { label: 'San Juan', value: 'San Juan' },
+  { label: 'San Pedro', value: 'San Pedro' },
+  { label: 'Santa Ana', value: 'Santa Ana' },
+  { label: 'Santa Cruz', value: 'Santa Cruz' },
+  { label: 'Santamesa', value: 'Santamesa' },
+  { label: 'Santo Niño', value: 'Santo Niño' },
+  { label: 'Sucat', value: 'Sucat' },
+  { label: 'Taguig City', value: 'Taguig City' },
+  { label: 'Tatalon', value: 'Tatalon' },
+  { label: 'Tondo', value: 'Tondo' },
+  { label: 'Upper Bicutan', value: 'Upper Bicutan' },
+  { label: 'Valenzuela', value: 'Valenzuela' },
+  { label: 'West Rembo', value: 'West Rembo' },
+  { label: 'Western Bicutan', value: 'Western Bicutan' },
+];
+
+const userFormSchema = z.object({
+  first_name: z.string().min(1, {
+    message: 'First name is required',
+  }),
+  last_name: z.string().min(1, {
+    message: 'Last name is required',
+  }),
+  gender: z.string().min(1, {
+    message: 'Gender is required',
+  }),
+  viber_no: z.string().min(1, {
+    message: 'Viber no. is required',
+  }),
+});
+
+interface interUserFormData {
+  birthdate: string;
+  city: string;
+  confirm_password: string;
+  email: string;
+  first_name: string;
+  gender: string;
+  last_name: string;
+  membership_date: string;
+  middle_name: string;
+  nickname: string;
+  password: string;
+  photo: string;
+  position: string;
+  status: string;
+  suffix: string;
+  viber_no: string;
+  endorsed_id: string;
+}
+
+const ProductsPage = () => {
+  const [tableData, setTableData] = useState([]);
+  const [tableMetaData, setTableMetaData] = useState();
+  const [loading, setLoading] = useState(false);
+  const [modalState, setModalState] = useState(false);
+  const [selected, setSelected] = useState(cities[0]);
+  const [query, setQuery] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isCameraMode, setIsCameraMode] = useState(false);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const [formFilterData, setFormFilterData] = useState({
+    limit: 10,
+    page: 1,
+  });
+
+  const filteredCity =
+    query === ''
+      ? cities
+      : cities.filter((city) =>
+          city.label
+            .toLowerCase()
+            .replace(/\s+/g, '')
+            .includes(query.toLowerCase().replace(/\s+/g, '')),
+        );
+
+  const columns = [
+    {
+      title: 'Name',
+      index: 'name',
+      render: (dom: any) => {
+        return <h5 className="font-medium text-black dark:text-white">{dom || '-'}</h5>;
+      },
+    },
+    {
+      title: 'Sku',
+      index: 'sku',
+      render: (dom: any) => {
+        return <h5 className="font-medium text-black dark:text-white">{dom || '-'}</h5>;
+      },
+    },
+    {
+      title: 'Price',
+      index: 'price',
+      render: (dom: any) => {
+        return <h5 className="font-medium text-black dark:text-white">{dom || '-'}</h5>;
+      },
+    },
+    {
+      title: 'Category',
+      index: 'category',
+      render: (dom: any) => {
+        return <h5 className="font-medium text-black dark:text-white">{dom?.name || '-'}</h5>;
+      },
+    },
+    {
+      title: 'Actions',
+      index: 'id',
+      render: (dom: any) => {
+        return (
+          <div className="flex items-center justify-end gap-1">
+            <button className="bg-primary text-white rounded text-sm px-2 py-1 hover:bg-opacity-50 inline-flex items-center">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 16 16"
+                fill="currentColor"
+                className="w-4 h-4 xl:mr-1 lg:mr-1"
+              >
+                <path d="M13.488 2.513a1.75 1.75 0 0 0-2.475 0L6.75 6.774a2.75 2.75 0 0 0-.596.892l-.848 2.047a.75.75 0 0 0 .98.98l2.047-.848a2.75 2.75 0 0 0 .892-.596l4.261-4.262a1.75 1.75 0 0 0 0-2.474Z" />
+                <path d="M4.75 3.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h6.5c.69 0 1.25-.56 1.25-1.25V9A.75.75 0 0 1 14 9v2.25A2.75 2.75 0 0 1 11.25 14h-6.5A2.75 2.75 0 0 1 2 11.25v-6.5A2.75 2.75 0 0 1 4.75 2H7a.75.75 0 0 1 0 1.5H4.75Z" />
+              </svg>
+              <span className="hidden xl:block lg:block">Edit</span>
+            </button>
+            <button className="bg-slate-400 text-white rounded text-sm px-2 py-1 hover:bg-opacity-50 inline-flex items-center">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 16 16"
+                fill="currentColor"
+                className="w-4 h-4 xl:mr-1 lg:mr-1"
+              >
+                <path d="M7.25 3.688a8.035 8.035 0 0 0-4.872-.523A.48.48 0 0 0 2 3.64v7.994c0 .345.342.588.679.512a6.02 6.02 0 0 1 4.571.81V3.688ZM8.75 12.956a6.02 6.02 0 0 1 4.571-.81c.337.075.679-.167.679-.512V3.64a.48.48 0 0 0-.378-.475 8.034 8.034 0 0 0-4.872.523v9.268Z" />
+              </svg>
+              <span className="hidden xl:block lg:block">View</span>
+            </button>
+            <button className="bg-danger text-white rounded text-sm px-2 py-1 hover:bg-opacity-50 inline-flex items-center">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 16 16"
+                fill="currentColor"
+                className="w-4 h-4 xl:mr-1 lg:mr-1"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.711Z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <span className="hidden xl:block lg:block">Delete</span>
+            </button>
+          </div>
+        );
+      },
+    },
+  ];
+
+  useEffect(() => {
+    handleGetProducts(formFilterData);
+  }, []);
+
+  const handleGetProducts = async (params: any) => {
+    setLoading(true);
+    setTableData([]);
+    try {
+      let res = await getProducts([], params);
+
+      setTableData(res?.data.data);
+      setTableMetaData(res?.data.meta);
+
+      setFormFilterData({
+        ...formFilterData,
+        ['limit']: res?.data.meta.per_page,
+        ['page']: res?.data.meta.current_page,
+      });
+    } catch (error) {
+      console.log('error: ', error);
+      // if (error?.response?.status == 401) {
+      // let res = await  outLogin()
+      // message.error('UnAuthenticated.')
+      // store.remove('accessToken');
+      // history.push('/')
+
+      // }
+    }
+    setLoading(false);
+  };
+
+  const handleModal = (state: boolean) => {
+    setModalState(state);
+  };
+
+  const [userFormData, setUserFormData] = useState<interUserFormData>({
+    birthdate: '',
+    city: '',
+    confirm_password: '',
+    email: '',
+    first_name: '',
+    gender: '',
+    last_name: '',
+    membership_date: '',
+    middle_name: '',
+    nickname: '',
+    password: '',
+    photo: '',
+    position: '',
+    status: '',
+    suffix: '',
+    viber_no: '',
+    endorsed_id: '',
+  });
+
+  const [validationErrors, setValidationErrors] = useState<ZodError | null>(null);
+
+  const handleInputChange = (e: any) => {
+    const { name, value } = e.target;
+    setUserFormData((prevData) => ({ ...prevData, [name]: value }));
+  };
+
+  const handleBlur = async (e: any) => {
+    try {
+      // Validate the form data when the field is blurred
+      await userFormSchema.parseAsync(userFormData);
+      // If validation is successful, reset errors
+      setValidationErrors(null);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        // Handle validation errors
+        setValidationErrors(error);
+      }
+    }
+  };
+
+  const handleNewUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      await userFormSchema.parseAsync(userFormData);
+
+      console.log('userFormData', userFormData);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        // Handle validation errors
+        setValidationErrors(error);
+        console.error('Form validation failed:', error.errors);
+      }
+    }
+  };
+
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+
+  const handleUploadImage = () => {
+    if (previewImage) {
+      const data = new FormData();
+      data.append('files[]', previewImage);
+
+      // fetch(/* server url */, { method: 'POST', body: data })
+      //     .then(async (response) => {
+      //         const imageResponse = await response.json();
+      //         setUploadedImage(imageResponse);
+      //     })
+      //     .catch((err) => {
+      //         // Handle error
+      //     });
+    }
+  };
+
+  const handleSelectImage = (event: ChangeEvent<HTMLInputElement>) => {
+    setIsCameraMode(false);
+    setCapturedImage(null);
+
+    const file = event.target.files?.[0];
+
+    if (file) {
+      const fileReader = new FileReader();
+      fileReader.addEventListener('load', () => {
+        setPreviewImage(fileReader.result as string);
+      });
+      fileReader.readAsDataURL(file);
+    }
+  };
+
+  const uploadImage = () => {
+    // Trigger the click event of the hidden file input
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  useEffect(() => {
+    if (isCameraMode) {
+      startCamera();
+    } else {
+      stopCamera();
+    }
+  }, [isCameraMode]);
+
+  const startCamera = async () => {
+    try {
+      setCapturedImage(null);
+      setPreviewImage(null);
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.onloadedmetadata = () => {
+          // Adjust canvas size based on video dimensions
+          const canvas = document.createElement('canvas');
+          canvas.width = videoRef.current!.videoWidth;
+          canvas.height = videoRef.current!.videoHeight;
+        };
+        videoRef.current.play();
+      }
+      mediaStreamRef.current = stream;
+    } catch (error) {
+      console.error('Error accessing camera:', error);
+    }
+  };
+
+  const stopCamera = () => {
+    if (mediaStreamRef.current) {
+      const tracks = mediaStreamRef.current.getTracks();
+      tracks.forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+    }
+  };
+
+  const captureFrame = () => {
+    if (videoRef.current) {
+      const canvas = document.createElement('canvas');
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      const context = canvas.getContext('2d');
+
+      if (context) {
+        context.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+        const imageDataURL = canvas.toDataURL('image/png');
+        setCapturedImage(imageDataURL);
+        setIsCameraMode(false);
+      }
+    }
+  };
+
   return (
     <DefaultLayout>
-      <div className="mx-auto max-w-270">
-        <Breadcrumb pageName="Settings" />
-
-        <div className="grid grid-cols-5 gap-8">
-          <div className="col-span-5 xl:col-span-3">
-            <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
-              <div className="border-b border-stroke px-7 py-4 dark:border-strokedark">
-                <h3 className="font-medium text-black dark:text-white">
-                  Personal Information
-                </h3>
-              </div>
-              <div className="p-7">
-                <form action="#">
-                  <div className="mb-5.5 flex flex-col gap-5.5 sm:flex-row">
-                    <div className="w-full sm:w-1/2">
-                      <label
-                        className="mb-3 block text-sm font-medium text-black dark:text-white"
-                        htmlFor="fullName"
-                      >
-                        Full Name
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-4.5 top-4">
-                          <svg
-                            className="fill-current"
-                            width="20"
-                            height="20"
-                            viewBox="0 0 20 20"
-                            fill="none"
-                            xmlns="http://www.w3.org/2000/svg"
-                          >
-                            <g opacity="0.8">
-                              <path
-                                fillRule="evenodd"
-                                clipRule="evenodd"
-                                d="M3.72039 12.887C4.50179 12.1056 5.5616 11.6666 6.66667 11.6666H13.3333C14.4384 11.6666 15.4982 12.1056 16.2796 12.887C17.061 13.6684 17.5 14.7282 17.5 15.8333V17.5C17.5 17.9602 17.1269 18.3333 16.6667 18.3333C16.2064 18.3333 15.8333 17.9602 15.8333 17.5V15.8333C15.8333 15.1703 15.5699 14.5344 15.1011 14.0655C14.6323 13.5967 13.9964 13.3333 13.3333 13.3333H6.66667C6.00363 13.3333 5.36774 13.5967 4.8989 14.0655C4.43006 14.5344 4.16667 15.1703 4.16667 15.8333V17.5C4.16667 17.9602 3.79357 18.3333 3.33333 18.3333C2.8731 18.3333 2.5 17.9602 2.5 17.5V15.8333C2.5 14.7282 2.93899 13.6684 3.72039 12.887Z"
-                                fill=""
-                              />
-                              <path
-                                fillRule="evenodd"
-                                clipRule="evenodd"
-                                d="M9.99967 3.33329C8.61896 3.33329 7.49967 4.45258 7.49967 5.83329C7.49967 7.214 8.61896 8.33329 9.99967 8.33329C11.3804 8.33329 12.4997 7.214 12.4997 5.83329C12.4997 4.45258 11.3804 3.33329 9.99967 3.33329ZM5.83301 5.83329C5.83301 3.53211 7.69849 1.66663 9.99967 1.66663C12.3009 1.66663 14.1663 3.53211 14.1663 5.83329C14.1663 8.13448 12.3009 9.99996 9.99967 9.99996C7.69849 9.99996 5.83301 8.13448 5.83301 5.83329Z"
-                                fill=""
-                              />
-                            </g>
-                          </svg>
-                        </span>
-                        <input
-                          className="w-full rounded border border-stroke bg-gray py-3 pl-11.5 pr-4.5 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
-                          type="text"
-                          name="fullName"
-                          id="fullName"
-                          placeholder="Devid Jhon"
-                          defaultValue="Devid Jhon"
+      <div className="mx-auto max-w-7xl">
+        <Breadcrumb pageName="Products" />
+        <div className="rounded-sm border border-stroke bg-white px-5 pb-2.5 pt-6 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5 xl:pb-1">
+          <div className="max-w-full overflow-x-auto">
+            <Modal modalState={modalState} modalFn={handleModal}>
+              <form onSubmit={handleNewUserSubmit}>
+                <div className="grid lg:grid-cols-3 gap-4">
+                  <div className="lg:col-span-3">
+                    <div className="relative h-35 w-40 border border-dashed border-slate-400 rounded-lg mx-auto bg-slate-100 flex items-center justify-center">
+                      {isCameraMode && (
+                        <video ref={videoRef} autoPlay playsInline className=" h-35 w-40" />
+                      )}
+                      {capturedImage && <img src={capturedImage} alt="captured-image" />}
+                      {previewImage ? (
+                        <img
+                          src={previewImage}
+                          alt="preview-image"
+                          className="h-35 w-40 overflow-hidden rounded-lg"
                         />
-                      </div>
-                    </div>
+                      ) : null}
 
-                    <div className="w-full sm:w-1/2">
-                      <label
-                        className="mb-3 block text-sm font-medium text-black dark:text-white"
-                        htmlFor="phoneNumber"
+                      {!isCameraMode && (
+                        <button
+                          onClick={uploadImage}
+                          className="absolute top-0 mt-10 bg-transparent text-black rounded-lg p-2"
+                        >
+                          Upload
+                        </button>
+                      )}
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        onChange={handleSelectImage}
+                      />
+                      <button
+                        onClick={isCameraMode ? captureFrame : () => setIsCameraMode(true)}
+                        className="absolute bottom-0 w-full overflow-hidden bg-white rounded-b-lg shadow-sm hover:opacity-50 text-sm p-1"
                       >
-                        Phone Number
-                      </label>
-                      <input
-                        className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
-                        type="text"
-                        name="phoneNumber"
-                        id="phoneNumber"
-                        placeholder="+990 3343 7865"
-                        defaultValue="+990 3343 7865"
-                      />
+                        {isCameraMode ? 'Capture Photo' : 'Take a photo'}
+                      </button>
                     </div>
                   </div>
-
-                  <div className="mb-5.5">
-                    <label
-                      className="mb-3 block text-sm font-medium text-black dark:text-white"
-                      htmlFor="emailAddress"
-                    >
-                      Email Address
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-4.5 top-4">
-                        <svg
-                          className="fill-current"
-                          width="20"
-                          height="20"
-                          viewBox="0 0 20 20"
-                          fill="none"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <g opacity="0.8">
-                            <path
-                              fillRule="evenodd"
-                              clipRule="evenodd"
-                              d="M3.33301 4.16667C2.87658 4.16667 2.49967 4.54357 2.49967 5V15C2.49967 15.4564 2.87658 15.8333 3.33301 15.8333H16.6663C17.1228 15.8333 17.4997 15.4564 17.4997 15V5C17.4997 4.54357 17.1228 4.16667 16.6663 4.16667H3.33301ZM0.833008 5C0.833008 3.6231 1.9561 2.5 3.33301 2.5H16.6663C18.0432 2.5 19.1663 3.6231 19.1663 5V15C19.1663 16.3769 18.0432 17.5 16.6663 17.5H3.33301C1.9561 17.5 0.833008 16.3769 0.833008 15V5Z"
-                              fill=""
-                            />
-                            <path
-                              fillRule="evenodd"
-                              clipRule="evenodd"
-                              d="M0.983719 4.52215C1.24765 4.1451 1.76726 4.05341 2.1443 4.31734L9.99975 9.81615L17.8552 4.31734C18.2322 4.05341 18.7518 4.1451 19.0158 4.52215C19.2797 4.89919 19.188 5.4188 18.811 5.68272L10.4776 11.5161C10.1907 11.7169 9.80879 11.7169 9.52186 11.5161L1.18853 5.68272C0.811486 5.4188 0.719791 4.89919 0.983719 4.52215Z"
-                              fill=""
-                            />
-                          </g>
-                        </svg>
-                      </span>
-                      <input
-                        className="w-full rounded border border-stroke bg-gray py-3 pl-11.5 pr-4.5 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
-                        type="email"
-                        name="emailAddress"
-                        id="emailAddress"
-                        placeholder="devidjond45@gmail.com"
-                        defaultValue="devidjond45@gmail.com"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="mb-5.5">
-                    <label
-                      className="mb-3 block text-sm font-medium text-black dark:text-white"
-                      htmlFor="Username"
-                    >
-                      Username
+                  <div>
+                    <label className="relative mb-3 block text-sm font-medium text-black dark:text-white">
+                      <span className="text-red text-lg absolute left-0 top-0">*</span>
+                      <span className="ml-3">First name</span>
                     </label>
                     <input
-                      className="w-full rounded border border-stroke bg-gray px-4.5 py-3 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
                       type="text"
-                      name="Username"
-                      id="Username"
-                      placeholder="devidjhon24"
-                      defaultValue="devidjhon24"
+                      name="first_name"
+                      placeholder="Please enter"
+                      value={userFormData.first_name}
+                      onChange={handleInputChange}
+                      onBlur={handleBlur}
+                      className={`w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition  disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white ${validationErrors?.issues.some((issue) => issue.path[0] === 'first_name') ? 'focus:border-danger active:border-danger dark:focus:border-danger border-danger' : 'focus:border-primary active:border-primary dark:focus:border-primary'}`}
                     />
+                    {validationErrors?.errors && validationErrors.errors.length > 0 && (
+                      <div className="text-red text-sm">
+                        {validationErrors.errors
+                          .filter((error) => error.path[0] === 'first_name')
+                          .map((error, index) => (
+                            <p key={index}>{error.message}</p>
+                          ))}
+                      </div>
+                    )}
                   </div>
-
-                  <div className="mb-5.5">
-                    <label
-                      className="mb-3 block text-sm font-medium text-black dark:text-white"
-                      htmlFor="Username"
-                    >
-                      BIO
+                  <div>
+                    <label className="relative mb-3 block text-sm font-medium text-black dark:text-white">
+                      <span className="text-red text-lg absolute left-0 top-0">*</span>
+                      <span className="ml-3">Last name</span>
                     </label>
-                    <div className="relative">
-                      <span className="absolute left-4.5 top-4">
-                        <svg
-                          className="fill-current"
-                          width="20"
-                          height="20"
-                          viewBox="0 0 20 20"
-                          fill="none"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <g opacity="0.8" clipPath="url(#clip0_88_10224)">
-                            <path
-                              fillRule="evenodd"
-                              clipRule="evenodd"
-                              d="M1.56524 3.23223C2.03408 2.76339 2.66997 2.5 3.33301 2.5H9.16634C9.62658 2.5 9.99967 2.8731 9.99967 3.33333C9.99967 3.79357 9.62658 4.16667 9.16634 4.16667H3.33301C3.11199 4.16667 2.90003 4.25446 2.74375 4.41074C2.58747 4.56702 2.49967 4.77899 2.49967 5V16.6667C2.49967 16.8877 2.58747 17.0996 2.74375 17.2559C2.90003 17.4122 3.11199 17.5 3.33301 17.5H14.9997C15.2207 17.5 15.4326 17.4122 15.5889 17.2559C15.7452 17.0996 15.833 16.8877 15.833 16.6667V10.8333C15.833 10.3731 16.2061 10 16.6663 10C17.1266 10 17.4997 10.3731 17.4997 10.8333V16.6667C17.4997 17.3297 17.2363 17.9656 16.7674 18.4344C16.2986 18.9033 15.6627 19.1667 14.9997 19.1667H3.33301C2.66997 19.1667 2.03408 18.9033 1.56524 18.4344C1.0964 17.9656 0.833008 17.3297 0.833008 16.6667V5C0.833008 4.33696 1.0964 3.70107 1.56524 3.23223Z"
-                              fill=""
-                            />
-                            <path
-                              fillRule="evenodd"
-                              clipRule="evenodd"
-                              d="M16.6664 2.39884C16.4185 2.39884 16.1809 2.49729 16.0056 2.67253L8.25216 10.426L7.81167 12.188L9.57365 11.7475L17.3271 3.99402C17.5023 3.81878 17.6008 3.5811 17.6008 3.33328C17.6008 3.08545 17.5023 2.84777 17.3271 2.67253C17.1519 2.49729 16.9142 2.39884 16.6664 2.39884ZM14.8271 1.49402C15.3149 1.00622 15.9765 0.732178 16.6664 0.732178C17.3562 0.732178 18.0178 1.00622 18.5056 1.49402C18.9934 1.98182 19.2675 2.64342 19.2675 3.33328C19.2675 4.02313 18.9934 4.68473 18.5056 5.17253L10.5889 13.0892C10.4821 13.196 10.3483 13.2718 10.2018 13.3084L6.86847 14.1417C6.58449 14.2127 6.28409 14.1295 6.0771 13.9225C5.87012 13.7156 5.78691 13.4151 5.85791 13.1312L6.69124 9.79783C6.72787 9.65131 6.80364 9.51749 6.91044 9.41069L14.8271 1.49402Z"
-                              fill=""
-                            />
-                          </g>
-                          <defs>
-                            <clipPath id="clip0_88_10224">
-                              <rect width="20" height="20" fill="white" />
-                            </clipPath>
-                          </defs>
-                        </svg>
-                      </span>
-
-                      <textarea
-                        className="w-full rounded border border-stroke bg-gray py-3 pl-11.5 pr-4.5 text-black focus:border-primary focus-visible:outline-none dark:border-strokedark dark:bg-meta-4 dark:text-white dark:focus:border-primary"
-                        name="bio"
-                        id="bio"
-                        rows={6}
-                        placeholder="Write your bio here"
-                        defaultValue="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque posuere fermentum urna, eu condimentum mauris tempus ut. Donec fermentum blandit aliquet."
-                      ></textarea>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end gap-4.5">
-                    <button
-                      className="flex justify-center rounded border border-stroke px-6 py-2 font-medium text-black hover:shadow-1 dark:border-strokedark dark:text-white"
-                      type="submit"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      className="flex justify-center rounded bg-primary px-6 py-2 font-medium text-gray hover:bg-opacity-90"
-                      type="submit"
-                    >
-                      Save
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-          <div className="col-span-5 xl:col-span-2">
-            <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
-              <div className="border-b border-stroke px-7 py-4 dark:border-strokedark">
-                <h3 className="font-medium text-black dark:text-white">
-                  Your Photo
-                </h3>
-              </div>
-              <div className="p-7">
-                <form action="#">
-                  <div className="mb-4 flex items-center gap-3">
-                    <div className="h-14 w-14 rounded-full">
-                      <Image
-                        src={"/images/user/user-03.png"}
-                        width={55}
-                        height={55}
-                        alt="User"
-                      />
-                    </div>
-                    <div>
-                      <span className="mb-1.5 text-black dark:text-white">
-                        Edit your photo
-                      </span>
-                      <span className="flex gap-2.5">
-                        <button className="text-sm hover:text-primary">
-                          Delete
-                        </button>
-                        <button className="text-sm hover:text-primary">
-                          Update
-                        </button>
-                      </span>
-                    </div>
-                  </div>
-
-                  <div
-                    id="FileUpload"
-                    className="relative mb-5.5 block w-full cursor-pointer appearance-none rounded border border-dashed border-primary bg-gray px-4 py-4 dark:bg-meta-4 sm:py-7.5"
-                  >
                     <input
-                      type="file"
-                      accept="image/*"
-                      className="absolute inset-0 z-50 m-0 h-full w-full cursor-pointer p-0 opacity-0 outline-none"
+                      type="text"
+                      name="last_name"
+                      placeholder="Please enter"
+                      value={userFormData.last_name}
+                      onChange={handleInputChange}
+                      onBlur={handleBlur}
+                      className={`w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition  disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white ${validationErrors?.issues.some((issue) => issue.path[0] === 'first_name') ? 'focus:border-danger active:border-danger dark:focus:border-danger border-danger' : 'focus:border-primary active:border-primary dark:focus:border-primary'}`}
                     />
-                    <div className="flex flex-col items-center justify-center space-y-3">
-                      <span className="flex h-10 w-10 items-center justify-center rounded-full border border-stroke bg-white dark:border-strokedark dark:bg-boxdark">
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 16 16"
-                          fill="none"
-                          xmlns="http://www.w3.org/2000/svg"
+                    {validationErrors?.errors && validationErrors.errors.length > 0 && (
+                      <div className="text-red text-sm">
+                        {validationErrors.errors
+                          .filter((error) => error.path[0] === 'last_name')
+                          .map((error, index) => (
+                            <p key={index}>{error.message}</p>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                      Middle name
+                    </label>
+                    <input
+                      type="text"
+                      name="middle_name"
+                      placeholder="Please enter"
+                      value={userFormData.middle_name}
+                      onChange={handleInputChange}
+                      onBlur={handleBlur}
+                      className="w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                      Suffix
+                    </label>
+                    <select
+                      name="suffix"
+                      value={userFormData.suffix}
+                      onChange={handleInputChange}
+                      onBlur={handleBlur}
+                      className="w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                    >
+                      <option value="" className="text-opacity-65">
+                        Please select
+                      </option>
+                      <option value="SR">SR</option>
+                      <option value="JR">JR</option>
+                      <option value="II">II</option>
+                      <option value="III">III</option>
+                      <option value="IV">IV</option>
+                      <option value="None">None</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                      Nickname
+                    </label>
+                    <input
+                      type="text"
+                      name="nickname"
+                      placeholder="Please enter"
+                      value={userFormData.nickname}
+                      onChange={handleInputChange}
+                      onBlur={handleBlur}
+                      className="w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="relative mb-3 block text-sm font-medium text-black dark:text-white">
+                      <span className="text-red text-lg absolute left-0 top-0">*</span>
+                      <span className="ml-3">Gender</span>
+                    </label>
+                    <select
+                      name="gender"
+                      value={userFormData.gender}
+                      onChange={handleInputChange}
+                      onBlur={handleBlur}
+                      className={`w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition  disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white ${validationErrors?.issues.some((issue) => issue.path[0] === 'first_name') ? 'focus:border-danger active:border-danger dark:focus:border-danger border-danger' : 'focus:border-primary active:border-primary dark:focus:border-primary'}`}
+                      // className="w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                    >
+                      <option value="" className="text-opacity-65">
+                        Please select
+                      </option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Femal</option>
+                      <option value="Rather not to say">Rather not to say</option>
+                    </select>
+                    {validationErrors?.errors && validationErrors.errors.length > 0 && (
+                      <div className="text-red text-sm">
+                        {validationErrors.errors
+                          .filter((error) => error.path[0] === 'gender')
+                          .map((error, index) => (
+                            <p key={index}>{error.message}</p>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                      Birthdate
+                    </label>
+                    <input
+                      type="date"
+                      name="birthdate"
+                      placeholder="Please enter"
+                      value={userFormData.birthdate}
+                      onChange={handleInputChange}
+                      onBlur={handleBlur}
+                      className="w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                      City
+                    </label>
+                    <Combobox name="city" value={selected} onChange={setSelected}>
+                      <div className="relative">
+                        <div className="w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary">
+                          <Combobox.Input
+                            name="city"
+                            className="w-full border-none pr-10 text-sm leading-5 text-gray-900 focus:ring-0 outline-none"
+                            displayValue={(city: any) => city.label}
+                            onChange={(event) => {
+                              setQuery(event.target.value);
+                              setTimeout(() => {
+                                handleInputChange(event);
+                              }, 1000);
+                            }}
+                            // value={userFormData.city}
+                            // onBlur={handleBlur}
+                          />
+                          <Combobox.Button className="absolute inset-y-0 right-0 flex items-center pr-2">
+                            <ChevronUpDownIcon
+                              className="h-5 w-5 text-gray-400"
+                              aria-hidden="true"
+                            />
+                          </Combobox.Button>
+                        </div>
+                        <Transition
+                          as={Fragment}
+                          leave="transition ease-in duration-100"
+                          leaveFrom="opacity-100"
+                          leaveTo="opacity-0"
+                          afterLeave={() => setQuery('')}
                         >
-                          <path
-                            fillRule="evenodd"
-                            clipRule="evenodd"
-                            d="M1.99967 9.33337C2.36786 9.33337 2.66634 9.63185 2.66634 10V12.6667C2.66634 12.8435 2.73658 13.0131 2.8616 13.1381C2.98663 13.2631 3.1562 13.3334 3.33301 13.3334H12.6663C12.8431 13.3334 13.0127 13.2631 13.1377 13.1381C13.2628 13.0131 13.333 12.8435 13.333 12.6667V10C13.333 9.63185 13.6315 9.33337 13.9997 9.33337C14.3679 9.33337 14.6663 9.63185 14.6663 10V12.6667C14.6663 13.1971 14.4556 13.7058 14.0806 14.0809C13.7055 14.456 13.1968 14.6667 12.6663 14.6667H3.33301C2.80257 14.6667 2.29387 14.456 1.91879 14.0809C1.54372 13.7058 1.33301 13.1971 1.33301 12.6667V10C1.33301 9.63185 1.63148 9.33337 1.99967 9.33337Z"
-                            fill="#3C50E0"
-                          />
-                          <path
-                            fillRule="evenodd"
-                            clipRule="evenodd"
-                            d="M7.5286 1.52864C7.78894 1.26829 8.21106 1.26829 8.4714 1.52864L11.8047 4.86197C12.0651 5.12232 12.0651 5.54443 11.8047 5.80478C11.5444 6.06513 11.1223 6.06513 10.8619 5.80478L8 2.94285L5.13807 5.80478C4.87772 6.06513 4.45561 6.06513 4.19526 5.80478C3.93491 5.54443 3.93491 5.12232 4.19526 4.86197L7.5286 1.52864Z"
-                            fill="#3C50E0"
-                          />
-                          <path
-                            fillRule="evenodd"
-                            clipRule="evenodd"
-                            d="M7.99967 1.33337C8.36786 1.33337 8.66634 1.63185 8.66634 2.00004V10C8.66634 10.3682 8.36786 10.6667 7.99967 10.6667C7.63148 10.6667 7.33301 10.3682 7.33301 10V2.00004C7.33301 1.63185 7.63148 1.33337 7.99967 1.33337Z"
-                            fill="#3C50E0"
-                          />
-                        </svg>
-                      </span>
-                      <p>
-                        <span className="text-primary">Click to upload</span> or
-                        drag and drop
-                      </p>
-                      <p className="mt-1.5">SVG, PNG, JPG or GIF</p>
-                      <p>(max, 800 X 800px)</p>
-                    </div>
+                          <Combobox.Options className="z-20 absolute mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none sm:text-sm">
+                            {filteredCity.length === 0 && query !== '' ? (
+                              <div className="relative cursor-default select-none px-4 py-2 text-gray-700">
+                                Nothing found.
+                              </div>
+                            ) : (
+                              filteredCity.map((city, i) => (
+                                <Combobox.Option
+                                  key={i}
+                                  className={({ active }) =>
+                                    `relative cursor-default select-none py-2 pl-10 pr-4 ${
+                                      active ? 'bg-teal-600 text-white' : 'text-gray-900'
+                                    }`
+                                  }
+                                  value={city}
+                                >
+                                  {({ selected, active }) => (
+                                    <>
+                                      <span
+                                        className={`block truncate ${
+                                          selected ? 'font-medium' : 'font-normal'
+                                        }`}
+                                      >
+                                        {city.label}
+                                      </span>
+                                      {selected ? (
+                                        <span
+                                          className={`absolute inset-y-0 left-0 flex items-center pl-3 ${
+                                            active ? 'text-white' : 'text-teal-600'
+                                          }`}
+                                        >
+                                          <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                                        </span>
+                                      ) : null}
+                                    </>
+                                  )}
+                                </Combobox.Option>
+                              ))
+                            )}
+                          </Combobox.Options>
+                        </Transition>
+                      </div>
+                    </Combobox>
                   </div>
+                  <div>
+                    <label className="relative mb-3 block text-sm font-medium text-black dark:text-white">
+                      <span className="text-red text-lg absolute left-0 top-0">*</span>
+                      <span className="ml-3">Viber no.</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="viber_no"
+                      placeholder="Please enter"
+                      value={userFormData.viber_no}
+                      onChange={handleInputChange}
+                      onBlur={handleBlur}
+                      className={`w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition  disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white ${validationErrors?.issues.some((issue) => issue.path[0] === 'first_name') ? 'focus:border-danger active:border-danger dark:focus:border-danger border-danger' : 'focus:border-primary active:border-primary dark:focus:border-primary'}`}
+                    />
+                    {validationErrors?.errors && validationErrors.errors.length > 0 && (
+                      <div className="text-red text-sm">
+                        {validationErrors.errors
+                          .filter((error) => error.path[0] === 'viber_no')
+                          .map((error, index) => (
+                            <p key={index}>{error.message}</p>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={userFormData.email}
+                      onChange={handleInputChange}
+                      onBlur={handleBlur}
+                      placeholder="Please enter"
+                      className="w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      name="password"
+                      placeholder="Please enter"
+                      value={userFormData.password}
+                      onChange={handleInputChange}
+                      onBlur={handleBlur}
+                      className="w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                      Confirm password
+                    </label>
+                    <input
+                      type="password"
+                      name="confirm_password"
+                      placeholder="Please enter"
+                      value={userFormData.confirm_password}
+                      onChange={handleInputChange}
+                      onBlur={handleBlur}
+                      className="w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                      Membership date
+                    </label>
+                    <input
+                      type="date"
+                      name="membership_date"
+                      placeholder="Please enter"
+                      value={userFormData.membership_date}
+                      onChange={handleInputChange}
+                      onBlur={handleBlur}
+                      className="w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                      Endorsed by
+                    </label>
+                    <Combobox value={selected} onChange={setSelected}>
+                      <div className="relative">
+                        <div className="w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary">
+                          <Combobox.Input
+                            className="w-full border-none pr-10 text-sm leading-5 text-gray-900 focus:ring-0 outline-none"
+                            displayValue={(city: any) => city.label}
+                            onChange={(event) => {
+                              setQuery(event.target.value);
+                              handleInputChange(event);
+                            }}
+                            value={userFormData.endorsed_id}
+                            onBlur={handleBlur}
+                          />
+                          <Combobox.Button className="absolute inset-y-0 right-0 flex items-center pr-2">
+                            <ChevronUpDownIcon
+                              className="h-5 w-5 text-gray-400"
+                              aria-hidden="true"
+                            />
+                          </Combobox.Button>
+                        </div>
+                        <Transition
+                          as={Fragment}
+                          leave="transition ease-in duration-100"
+                          leaveFrom="opacity-100"
+                          leaveTo="opacity-0"
+                          afterLeave={() => setQuery('')}
+                        >
+                          <Combobox.Options className="absolute mt-1 max-h-60 w-full overflow-auto rounded-md bg-white py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none sm:text-sm">
+                            {filteredCity.length === 0 && query !== '' ? (
+                              <div className="relative cursor-default select-none px-4 py-2 text-gray-700">
+                                Nothing found.
+                              </div>
+                            ) : (
+                              filteredCity.map((city, i) => (
+                                <Combobox.Option
+                                  key={i}
+                                  className={({ active }) =>
+                                    `relative cursor-default select-none py-2 pl-10 pr-4 ${
+                                      active ? 'bg-teal-600 text-white' : 'text-gray-900'
+                                    }`
+                                  }
+                                  value={city}
+                                >
+                                  {({ selected, active }) => (
+                                    <>
+                                      <span
+                                        className={`block truncate ${
+                                          selected ? 'font-medium' : 'font-normal'
+                                        }`}
+                                      >
+                                        {city.label}
+                                      </span>
+                                      {selected ? (
+                                        <span
+                                          className={`absolute inset-y-0 left-0 flex items-center pl-3 ${
+                                            active ? 'text-white' : 'text-teal-600'
+                                          }`}
+                                        >
+                                          <CheckIcon className="h-5 w-5" aria-hidden="true" />
+                                        </span>
+                                      ) : null}
+                                    </>
+                                  )}
+                                </Combobox.Option>
+                              ))
+                            )}
+                          </Combobox.Options>
+                        </Transition>
+                      </div>
+                    </Combobox>
+                  </div>
+                  <div>
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                      Membership status
+                    </label>
+                    <select
+                      name="status"
+                      value={userFormData.status}
+                      onChange={handleInputChange}
+                      onBlur={handleBlur}
+                      className="w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                    >
+                      <option value="" className="text-opacity-65">
+                        Please select
+                      </option>
+                      <option value="Prospect">Prospect</option>
+                      <option value="Regular">Regular</option>
+                      <option value="Guest">Guest</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                      Membership position
+                    </label>
+                    <select
+                      name="position"
+                      value={userFormData.position}
+                      onChange={handleInputChange}
+                      onBlur={handleBlur}
+                      className="w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                    >
+                      <option value="" className="text-opacity-65">
+                        Please select
+                      </option>
+                      <option value="Member">Member</option>
+                      <option value="President">President</option>
+                      <option value="Vice president">Vice president</option>
+                      <option value="Secretary">Secretary</option>
+                      <option value="Treasurer">Treasurer</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="flex items-center justify-end gap-2 mt-5">
+                  <button
+                    type="submit"
+                    className="inline-flex justify-center rounded-md border border-transparent bg-blue-100 px-4 py-2 text-sm font-medium text-blue-900 hover:bg-blue-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                  >
+                    Submit
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex justify-center rounded-md border border-transparent bg-slate-100 px-4 py-2 text-sm font-medium text-blue-900 hover:bg-blue-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                    onClick={() => {
+                      setModalState(false);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </Modal>
+            <div className="flex items-center gap-2 justify-end my-2">
+              <button
+                onClick={() => {
+                  setModalState(true);
+                }}
+                className="bg-primary text-white rounded inline-flex px-4 py-2 hover:bg-opacity-50"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className="w-5 h-5 mr-1"
+                >
+                  <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
+                </svg>
 
-                  <div className="flex justify-end gap-4.5">
-                    <button
-                      className="flex justify-center rounded border border-stroke px-6 py-2 font-medium text-black hover:shadow-1 dark:border-strokedark dark:text-white"
-                      type="submit"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      className="flex justify-center rounded bg-primary px-6 py-2 font-medium text-gray hover:bg-opacity-90"
-                      type="submit"
-                    >
-                      Save
-                    </button>
-                  </div>
-                </form>
-              </div>
+                <span>New</span>
+              </button>
             </div>
+            <Table
+              columns={columns}
+              tableData={tableData}
+              metaData={tableMetaData}
+              tableFn={handleGetProducts}
+              loading={loading}
+            />
           </div>
         </div>
       </div>
@@ -321,4 +915,4 @@ const Settings = () => {
   );
 };
 
-export default Settings;
+export default ProductsPage;
