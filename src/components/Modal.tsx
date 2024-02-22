@@ -6,9 +6,10 @@ type ModalProps = {
   modalState: boolean;
   modalFn: (params: boolean) => void;
   children?: ReactNode;
+  modalWidth: string;
 };
 
-const Modal = ({ modalState, modalFn, children }: ModalProps) => {
+const Modal = ({ modalState, modalFn, children, modalWidth }: ModalProps) => {
   const closeModal = () => {
     modalFn(false);
   };
@@ -39,7 +40,9 @@ const Modal = ({ modalState, modalFn, children }: ModalProps) => {
                 leaveFrom="opacity-100 scale-100"
                 leaveTo="opacity-0 scale-95"
               >
-                <Dialog.Panel className="w-[800px] transform overflow-hidden rounded-2xl bg-white dark:bg-meta-4 p-6 text-left align-middle shadow-xl transition-all">
+                <Dialog.Panel
+                  className={`${modalWidth || 'w-full max-w-md'} transform overflow-hidden rounded-2xl bg-white dark:bg-meta-4 p-6 text-left align-middle shadow-xl transition-all`}
+                >
                   {children}
                 </Dialog.Panel>
               </Transition.Child>

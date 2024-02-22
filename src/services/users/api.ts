@@ -46,3 +46,14 @@ export async function updateUser(body: any, options: any) {
     ...(options || {}),
   });
 }
+
+export async function deleteCustomer(id: any, options: any) {
+  return await globalAxios.delete(`/users/${id}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    skipErrorHandler: true,
+    ...(options || {}),
+  });
+}

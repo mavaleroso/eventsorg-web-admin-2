@@ -4,7 +4,7 @@ import DefaultLayout from '@/components/Layouts/DefaultLayout';
 import Breadcrumb from '@/components/Breadcrumbs/Breadcrumb';
 import { ChangeEvent, Fragment, useEffect, useRef, useState } from 'react';
 import Table from '@/components/Table';
-import { addUser, getUserById, getUsers, updateUser } from '@/services/users/api';
+import { addUser, deleteCustomer, getUserById, getUsers, updateUser } from '@/services/users/api';
 import Modal from '@/components/Modal';
 import { Combobox, Transition } from '@headlessui/react';
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/react/20/solid';
@@ -12,7 +12,9 @@ import { ZodError, z } from 'zod';
 import { Dialog } from '@headlessui/react';
 import toast, { Toaster } from 'react-hot-toast';
 import SlideOvers from '@/components/SildeOvers';
-import { PaperClipIcon } from '@heroicons/react/20/solid';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import QRCode from 'qrcode.react';
+import { toPng } from 'html-to-image';
 
 const cities = [
   { label: 'Bacoor', value: 'Bacoor' },
@@ -122,6 +124,7 @@ const UsersPage = () => {
   const [loading, setLoading] = useState(false);
   const [modalState, setModalState] = useState(false);
   const [slideOverState, setSlideOverState] = useState(false);
+  const [confirmDialogState, setConfirmDialogState] = useState(false);
   const [selectedCity, setSelectedCity] = useState([]);
   const [selectedEndorser, setSelectedEndorser] = useState([]);
   const [query, setQuery] = useState('');
@@ -132,6 +135,11 @@ const UsersPage = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const [isNew, setIsNew] = useState(true);
+  const [userId, setUserId] = useState(null);
+  const [qrModalState, setQrModalState] = useState(false);
+  const elementRef = useRef(null);
+  const [qrValue, setQrValue] = useState('');
+  const [nickname, setNickname] = useState(undefined);
   const [formFilterData, setFormFilterData] = useState({
     field_name: '',
     name: '',
@@ -188,7 +196,7 @@ const UsersPage = () => {
     {
       title: 'Actions',
       index: 'id',
-      render: (dom: any) => {
+      render: (dom: any, record: any) => {
         return (
           <div>
             <div className="flex items-center justify-end gap-1">
@@ -221,7 +229,10 @@ const UsersPage = () => {
                 </svg>
                 <span className="hidden xl:block lg:block">View</span>
               </button>
-              <button className="bg-danger text-white rounded text-sm px-2 py-1 hover:bg-opacity-50 inline-flex items-center">
+              <button
+                onClick={() => deleteUser(dom)}
+                className="bg-danger text-white rounded text-sm px-2 py-1 hover:bg-opacity-50 inline-flex items-center"
+              >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 16 16"
@@ -236,7 +247,10 @@ const UsersPage = () => {
                 </svg>
                 <span className="hidden xl:block lg:block">Delete</span>
               </button>
-              <button className="bg-black text-white rounded text-sm px-2 py-1 hover:bg-opacity-50 inline-flex items-center">
+              <button
+                onClick={() => viewQrCode(record)}
+                className="bg-black text-white rounded text-sm px-2 py-1 hover:bg-opacity-50 inline-flex items-center"
+              >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 16 16"
@@ -331,6 +345,17 @@ const UsersPage = () => {
     setSlideOverState(true);
   };
 
+  const deleteUser = (id: any) => {
+    setUserId(id);
+    setConfirmDialogState(true);
+  };
+
+  const viewQrCode = (record: any) => {
+    setQrValue(record?.id_no);
+    setNickname(record?.nickname);
+    setQrModalState(true);
+  };
+
   const filteredCity =
     query === ''
       ? cities
@@ -381,8 +406,30 @@ const UsersPage = () => {
     setModalState(state);
   };
 
+  const handleQrModal = (state: boolean) => {
+    setQrModalState(state);
+  };
+
   const handleSlideOver = (state: boolean) => {
     setSlideOverState(state);
+  };
+
+  const handleConfirmDialog = (state: boolean) => {
+    setConfirmDialogState(state);
+  };
+
+  const handleConfirmDelete = async () => {
+    try {
+      await toast.promise(deleteCustomer(userId, {}), {
+        loading: 'Loading...',
+        success: 'Successfully Deleted!',
+        error: 'Error data deletion.',
+      });
+      setConfirmDialogState(false);
+      handleGetUser(formFilterData);
+    } catch (error) {
+      console.log('delete user error', error);
+    }
   };
 
   const [userFormData, setUserFormData] = useState<interUserFormData>(initialFormData);
@@ -593,9 +640,40 @@ const UsersPage = () => {
     handleInputChange(event);
   };
 
+  const htmlToImageConvert = async () => {
+    //@ts-ignore
+    toPng(elementRef.current, { cacheBust: false })
+      .then(async (dataUrl) => {
+        const img = await fetch(dataUrl);
+        const imgBlob = await img.blob();
+
+        // const link = document.createElement("a");
+        // link.download = "my-image-name.png";
+        navigator.clipboard.write([
+          new ClipboardItem({
+            'image/png': imgBlob, // change image type accordingly
+          }),
+        ]);
+        toast.success('Image copied.');
+
+        // link.href = dataUrl;
+        // link.click();
+      })
+      .catch((error: any) => {
+        console.log(error);
+      });
+  };
+
   return (
     <DefaultLayout>
       <Toaster position="top-center" reverseOrder={false} />
+      <ConfirmDialog
+        state={confirmDialogState}
+        title={'Delete user'}
+        message={'Are you sure you want to delete this user?'}
+        dialogFn={handleConfirmDialog}
+        confirmFn={handleConfirmDelete}
+      />
       <SlideOvers slideOverState={slideOverState} slideOverFn={handleSlideOver}>
         <Dialog.Title className="text-base font-semibold leading-6 text-gray-900">
           <h3 className="text-base font-semibold leading-7 text-gray-900">User Information</h3>
@@ -691,7 +769,7 @@ const UsersPage = () => {
         <Breadcrumb pageName="Users" />
         <div className="rounded-sm border border-stroke bg-white px-5 pb-2.5 pt-6 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5 xl:pb-1">
           <div className="max-w-full overflow-x-auto">
-            <Modal modalState={modalState} modalFn={handleModal}>
+            <Modal modalState={modalState} modalFn={handleModal} modalWidth={'w-[800px]'}>
               <Dialog.Title
                 as="h3"
                 className="text-lg font-medium leading-6 text-black dark:text-white mb-5"
@@ -1189,6 +1267,36 @@ const UsersPage = () => {
                   </button>
                 </div>
               </form>
+            </Modal>
+            <Modal modalState={qrModalState} modalFn={handleQrModal} modalWidth={'w-full max-w-sm'}>
+              <Dialog.Title
+                as="h1"
+                className="text-title-lg text-center font-bold leading-6 text-black dark:text-white "
+              >
+                QR Code
+              </Dialog.Title>
+              <div ref={elementRef} style={{ backgroundColor: 'white' }}>
+                <QRCode
+                  id="qr-gen"
+                  value={qrValue}
+                  style={{ height: 'auto', maxWidth: '100%', width: '100%' }}
+                  size={250}
+                  bgColor={'#ffffff'}
+                  fgColor={'#000000'}
+                  level={'L'}
+                  includeMargin={true}
+                />
+                <span className="block px-4 py-2 rounded-lg bg-slate-200 mx-auto text-xl text-center font-bold leading-6 text-black dark:text-white">
+                  {nickname || '-'}
+                </span>
+              </div>
+
+              <button
+                onClick={htmlToImageConvert}
+                className="bg-primary px-4 py-2 block w-full rounded-lg mt-2 text-white hover:opacity-75"
+              >
+                Copy QR Code
+              </button>
             </Modal>
             <div className="flex items-center gap-2 justify-end my-2">
               <button
