@@ -4,13 +4,15 @@ import DefaultLayout from '@/components/Layouts/DefaultLayout';
 import Breadcrumb from '@/components/Breadcrumbs/Breadcrumb';
 import { ChangeEvent, Fragment, useEffect, useRef, useState } from 'react';
 import Table from '@/components/Table';
-import { addUser, getUsers } from '@/services/users/api';
+import { addUser, getUserById, getUsers, updateUser } from '@/services/users/api';
 import Modal from '@/components/Modal';
 import { Combobox, Transition } from '@headlessui/react';
 import { CheckIcon, ChevronUpDownIcon } from '@heroicons/react/20/solid';
 import { ZodError, z } from 'zod';
 import { Dialog } from '@headlessui/react';
 import toast, { Toaster } from 'react-hot-toast';
+import SlideOvers from '@/components/SildeOvers';
+import { PaperClipIcon } from '@heroicons/react/20/solid';
 
 const cities = [
   { label: 'Bacoor', value: 'Bacoor' },
@@ -119,6 +121,7 @@ const UsersPage = () => {
   const [tableMetaData, setTableMetaData] = useState();
   const [loading, setLoading] = useState(false);
   const [modalState, setModalState] = useState(false);
+  const [slideOverState, setSlideOverState] = useState(false);
   const [selectedCity, setSelectedCity] = useState([]);
   const [selectedEndorser, setSelectedEndorser] = useState([]);
   const [query, setQuery] = useState('');
@@ -164,28 +167,22 @@ const UsersPage = () => {
       title: 'Name',
       index: 'first_name',
       render: (dom: any, record: any) => {
-        const fullname = `${record.first_name} ${record.last_name} ${record.suffix}`;
-        return <h5 className="font-medium text-black dark:text-white">
-                  {fullname || '-'}
-                </h5>;
+        const fullname = `${record.first_name || ''} ${record.last_name || ''} ${record.suffix || ''}`;
+        return <h5 className="font-medium text-black dark:text-white">{fullname || '-'}</h5>;
       },
     },
     {
       title: 'Viber number',
       index: 'viber_no',
       render: (dom: any) => {
-        return <h5 className="font-medium text-black dark:text-white">
-                  {dom || '-'}
-                </h5>;
+        return <h5 className="font-medium text-black dark:text-white">{dom || '-'}</h5>;
       },
     },
     {
       title: 'Status',
       index: 'status',
       render: (dom: any) => {
-        return <h5 className="font-medium text-black dark:text-white">
-                  {dom || '-'}
-                </h5>;
+        return <h5 className="font-medium text-black dark:text-white">{dom || '-'}</h5>;
       },
     },
     {
@@ -210,7 +207,10 @@ const UsersPage = () => {
                 </svg>
                 <span className="hidden xl:block lg:block">Edit</span>
               </button>
-              <button className="bg-slate-400 text-white rounded text-sm px-2 py-1 hover:bg-opacity-50 inline-flex items-center">
+              <button
+                onClick={() => viewUser(dom)}
+                className="bg-slate-400 text-white rounded text-sm px-2 py-1 hover:bg-opacity-50 inline-flex items-center"
+              >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 16 16"
@@ -296,9 +296,39 @@ const UsersPage = () => {
     setLoading(false);
   };
 
-  const editUser = (id: number) => {
+  const editUser = async (id: number) => {
+    setSelectedCity([]);
+    setSelectedEndorser([]);
+    setPreviewImage(null);
+    setCapturedImage(null);
+    try {
+      toast.loading('Loading...');
+      const res = await getUserById(id);
+      setUserFormData(res?.data?.data);
+      // setSelectedCity([cities[0]]);
+      // setSelectedEndorser(user[0]);
+      setPreviewImage(res?.data?.data?.photo);
+      toast.dismiss();
+    } catch (error) {
+      toast.error('Error in fetching user!');
+    }
     setIsNew(false);
     setModalState(true);
+  };
+
+  const viewUser = async (id: number) => {
+    try {
+      toast.loading('Loading...');
+      const res = await getUserById(id);
+      setUserFormData(res?.data?.data);
+      // setSelectedCity([cities[0]]);
+      // setSelectedEndorser(user[0]);
+      setPreviewImage(res?.data?.data?.photo);
+      toast.dismiss();
+    } catch (error) {
+      toast.error('Error in fetching user!');
+    }
+    setSlideOverState(true);
   };
 
   const filteredCity =
@@ -345,8 +375,14 @@ const UsersPage = () => {
   };
 
   const handleModal = (state: boolean) => {
+    setSelectedCity([]);
+    setSelectedEndorser([]);
     setValidationErrors(null);
     setModalState(state);
+  };
+
+  const handleSlideOver = (state: boolean) => {
+    setSlideOverState(state);
   };
 
   const [userFormData, setUserFormData] = useState<interUserFormData>(initialFormData);
@@ -398,6 +434,32 @@ const UsersPage = () => {
     }
   };
 
+  const handleUserUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      await userFormSchema.parseAsync(userFormData);
+
+      await toast.promise(updateUser(userFormData, {}), {
+        loading: 'Loading...',
+        success: 'Successfully Updated!',
+        error: 'Error data on update.',
+      });
+
+      setModalState(false);
+      setUserFormData(initialFormData);
+      setCapturedImage(null);
+      setPreviewImage(null);
+      handleGetUser(formFilterData);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        // Handle validation errors
+        setValidationErrors(error);
+        console.error('Form validation failed:', error.errors);
+      }
+    }
+  };
+
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const handleSelectImage = (event: ChangeEvent<HTMLInputElement>) => {
@@ -407,18 +469,49 @@ const UsersPage = () => {
     const file = event.target.files?.[0];
 
     if (file) {
-      const fileReader = new FileReader();
-      fileReader.addEventListener('load', () => {
-        setPreviewImage(fileReader.result as string);
-        setUserFormData((prevState) => {
-          return {
-            ...prevState,
-            photo: fileReader.result as string,
-          };
-        });
-      });
+      // Check if the selected file is an image
+      if (file.type.startsWith('image/')) {
+        const maxSizeInBytes = 2 * 1024 * 1024;
 
-      fileReader.readAsDataURL(file);
+        if (file.size <= maxSizeInBytes) {
+          const fileReader = new FileReader();
+          fileReader.addEventListener('load', () => {
+            const image = new Image();
+            image.src = fileReader.result as string;
+
+            image.onload = () => {
+              // Create a canvas element to manipulate the image quality
+              const canvas = document.createElement('canvas');
+              const context = canvas.getContext('2d')!;
+              canvas.width = image.width;
+              canvas.height = image.height;
+
+              // Draw the image on the canvas with the desired quality (0.1 to 1.0)
+              context.drawImage(image, 0, 0, image.width, image.height);
+
+              // Convert the canvas content to a data URL with the specified quality
+              const dataUrl = canvas.toDataURL('image/jpeg', 0.5); // Adjust quality as needed
+
+              setPreviewImage(dataUrl);
+              setUserFormData((prevState) => {
+                return {
+                  ...prevState,
+                  photo: dataUrl,
+                };
+              });
+            };
+          });
+
+          fileReader.readAsDataURL(file);
+        } else {
+          toast.error('Please upload image not more than 2mb size.');
+        }
+
+        // Read the file as a data URL
+      } else {
+        // Handle non-image file types
+        console.error('Please select an image file');
+      }
     }
   };
 
@@ -503,6 +596,97 @@ const UsersPage = () => {
   return (
     <DefaultLayout>
       <Toaster position="top-center" reverseOrder={false} />
+      <SlideOvers slideOverState={slideOverState} slideOverFn={handleSlideOver}>
+        <Dialog.Title className="text-base font-semibold leading-6 text-gray-900">
+          <h3 className="text-base font-semibold leading-7 text-gray-900">User Information</h3>
+        </Dialog.Title>
+        <div className="mt-6">
+          <dl className="divide-y divide-gray-3">
+            <div className="p-2 sm:grid sm:grid-cols-2 sm:gap-4 sm:px-0">
+              <dt className="text-sm font-medium leading-6 text-gray-900">First name:</dt>
+              <dd className="mt-1 text-sm leading-6 text-gray-700 sm:mt-0">
+                {userFormData?.first_name || '-'}
+              </dd>
+            </div>
+            <div className="p-2 sm:grid sm:grid-cols-2 sm:gap-4 sm:px-0">
+              <dt className="text-sm font-medium leading-6 text-gray-900">Last name:</dt>
+              <dd className="mt-1 text-sm leading-6 text-gray-700 sm:mt-0">
+                {userFormData?.last_name || '-'}
+              </dd>
+            </div>
+            <div className="p-2 sm:grid sm:grid-cols-2 sm:gap-4 sm:px-0">
+              <dt className="text-sm font-medium leading-6 text-gray-900">Middle name:</dt>
+              <dd className="mt-1 text-sm leading-6 text-gray-700 sm:mt-0">
+                {userFormData?.middle_name || '-'}
+              </dd>
+            </div>
+            <div className="p-2 sm:grid sm:grid-cols-2 sm:gap-4 sm:px-0">
+              <dt className="text-sm font-medium leading-6 text-gray-900">Suffix:</dt>
+              <dd className="mt-1 text-sm leading-6 text-gray-700 sm:mt-0">
+                {userFormData?.suffix || '-'}
+              </dd>
+            </div>
+            <div className="p-2 sm:grid sm:grid-cols-2 sm:gap-4 sm:px-0">
+              <dt className="text-sm font-medium leading-6 text-gray-900">Nickname:</dt>
+              <dd className="mt-1 text-sm leading-6 text-gray-700 sm:mt-0">
+                {userFormData?.nickname || '-'}
+              </dd>
+            </div>
+            <div className="p-2 sm:grid sm:grid-cols-2 sm:gap-4 sm:px-0">
+              <dt className="text-sm font-medium leading-6 text-gray-900">Gender:</dt>
+              <dd className="mt-1 text-sm leading-6 text-gray-700 sm:mt-0">
+                {userFormData?.gender || '-'}
+              </dd>
+            </div>
+            <div className="p-2 sm:grid sm:grid-cols-2 sm:gap-4 sm:px-0">
+              <dt className="text-sm font-medium leading-6 text-gray-900">Birthdate:</dt>
+              <dd className="mt-1 text-sm leading-6 text-gray-700 sm:mt-0">
+                {userFormData?.birthdate || '-'}
+              </dd>
+            </div>
+            <div className="p-2 sm:grid sm:grid-cols-2 sm:gap-4 sm:px-0">
+              <dt className="text-sm font-medium leading-6 text-gray-900">City:</dt>
+              <dd className="mt-1 text-sm leading-6 text-gray-700 sm:mt-0">
+                {userFormData?.city || '-'}
+              </dd>
+            </div>
+            <div className="p-2 sm:grid sm:grid-cols-2 sm:gap-4 sm:px-0">
+              <dt className="text-sm font-medium leading-6 text-gray-900">Viber no.:</dt>
+              <dd className="mt-1 text-sm leading-6 text-gray-700 sm:mt-0">
+                {userFormData?.viber_no || '-'}
+              </dd>
+            </div>
+            <div className="p-2 sm:grid sm:grid-cols-2 sm:gap-4 sm:px-0">
+              <dt className="text-sm font-medium leading-6 text-gray-900">Email:</dt>
+              <dd className="mt-1 text-sm leading-6 text-gray-700 sm:mt-0">
+                {userFormData?.email || '-'}
+              </dd>
+            </div>
+            <div className="p-2 sm:grid sm:grid-cols-2 sm:gap-4 sm:px-0">
+              <dt className="text-sm font-medium leading-6 text-gray-900">Membership date:</dt>
+              <dd className="mt-1 text-sm leading-6 text-gray-700 sm:mt-0">
+                {userFormData?.membership_date || '-'}
+              </dd>
+            </div>
+            <div className="p-2 sm:grid sm:grid-cols-2 sm:gap-4 sm:px-0">
+              <dt className="text-sm font-medium leading-6 text-gray-900">Endorsed by:</dt>
+              <dd className="mt-1 text-sm leading-6 text-gray-700 sm:mt-0"></dd>
+            </div>
+            <div className="p-2 sm:grid sm:grid-cols-2 sm:gap-4 sm:px-0">
+              <dt className="text-sm font-medium leading-6 text-gray-900">Membership status:</dt>
+              <dd className="mt-1 text-sm leading-6 text-gray-700 sm:mt-0">
+                {userFormData?.status || '-'}
+              </dd>
+            </div>
+            <div className="p-2 sm:grid sm:grid-cols-2 sm:gap-4 sm:px-0">
+              <dt className="text-sm font-medium leading-6 text-gray-900">Membership position:</dt>
+              <dd className="mt-1 text-sm leading-6 text-gray-700 sm:mt-0">
+                {userFormData?.position || '-'}
+              </dd>
+            </div>
+          </dl>
+        </div>
+      </SlideOvers>
       <div className="mx-auto max-w-7xl">
         <Breadcrumb pageName="Users" />
         <div className="rounded-sm border border-stroke bg-white px-5 pb-2.5 pt-6 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5 xl:pb-1">
@@ -514,19 +698,21 @@ const UsersPage = () => {
               >
                 {isNew ? 'New' : 'Edit'} user
               </Dialog.Title>
-              <form onSubmit={handleUserSubmit}>
+              <form onSubmit={(e) => (isNew ? handleUserSubmit(e) : handleUserUpdate(e))}>
                 <div className="grid lg:grid-cols-3 gap-4">
                   <div className="lg:col-span-3">
                     <div className="relative h-35 w-40 border border-dashed border-slate-400 rounded-lg mx-auto bg-slate-100 flex items-center justify-center">
                       {isCameraMode && (
                         <video ref={videoRef} autoPlay playsInline className="h-35 w-40" />
                       )}
-                      {capturedImage && <img src={capturedImage} alt="captured-image" />}
+                      {capturedImage && (
+                        <img src={capturedImage} alt="captured-image" className="p-1" />
+                      )}
                       {previewImage ? (
                         <img
                           src={previewImage}
                           alt="preview-image"
-                          className="h-35 w-40 overflow-hidden rounded-lg"
+                          className="h-35 w-40 overflow-hidden rounded-lg p-1"
                         />
                       ) : null}
 
@@ -534,7 +720,7 @@ const UsersPage = () => {
                         <button
                           type="button"
                           onClick={uploadImage}
-                          className="absolute top-0 mt-10 bg-transparent text-black rounded-lg p-2"
+                          className="absolute top-0 mt-2 bg-slate-100 border border-slate-400 bg-opacity-50 text-black rounded-md p-1 text-xs hover:opacity-70"
                         >
                           Upload
                         </button>
@@ -622,7 +808,7 @@ const UsersPage = () => {
                     </label>
                     <select
                       name="suffix"
-                      value={userFormData.suffix}
+                      value={userFormData.suffix || ''}
                       onChange={handleInputChange}
                       onBlur={handleBlur}
                       className="w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
@@ -659,7 +845,7 @@ const UsersPage = () => {
                     </label>
                     <select
                       name="gender"
-                      value={userFormData.gender}
+                      value={userFormData.gender || ''}
                       onChange={handleInputChange}
                       onBlur={handleBlur}
                       className={`w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition  disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white ${validationErrors?.issues.some((issue) => issue.path[0] === 'gender') ? 'focus:border-danger active:border-danger dark:focus:border-danger border-danger' : 'focus:border-primary active:border-primary dark:focus:border-primary'}`}
@@ -668,9 +854,9 @@ const UsersPage = () => {
                       <option value="" className="text-opacity-65">
                         Please select
                       </option>
-                      <option value="Male">Male</option>
-                      <option value="Female">Femal</option>
-                      <option value="Rather not to say">Rather not to say</option>
+                      <option value="male">Male</option>
+                      <option value="female">Femal</option>
+                      <option value="rather not to say">Rather not to say</option>
                     </select>
                     {validationErrors?.errors && validationErrors.errors.length > 0 && (
                       <div className="text-red text-sm">
@@ -947,7 +1133,7 @@ const UsersPage = () => {
                     </label>
                     <select
                       name="status"
-                      value={userFormData.status}
+                      value={userFormData.status || ''}
                       onChange={handleInputChange}
                       onBlur={handleBlur}
                       className="w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
@@ -955,9 +1141,9 @@ const UsersPage = () => {
                       <option value="" className="text-opacity-65">
                         Please select
                       </option>
-                      <option value="Prospect">Prospect</option>
-                      <option value="Regular">Regular</option>
-                      <option value="Guest">Guest</option>
+                      <option value="prospect">Prospect</option>
+                      <option value="regular">Regular</option>
+                      <option value="guest">Guest</option>
                     </select>
                   </div>
                   <div>
@@ -966,7 +1152,7 @@ const UsersPage = () => {
                     </label>
                     <select
                       name="position"
-                      value={userFormData.position}
+                      value={userFormData.position || ''}
                       onChange={handleInputChange}
                       onBlur={handleBlur}
                       className="w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
@@ -987,7 +1173,7 @@ const UsersPage = () => {
                     type="submit"
                     className="inline-flex justify-center rounded-md border border-transparent bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-blue-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                   >
-                    Submit
+                    {isNew ? `Create` : 'Update'}
                   </button>
                   <button
                     type="button"

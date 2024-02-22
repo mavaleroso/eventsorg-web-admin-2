@@ -16,8 +16,28 @@ export async function getUsers(query?: any, params?: any, options?: any) {
   });
 }
 
+export async function getUserById(id: number) {
+  return await globalAxios.get(`/users/${id}`, {
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}
+
 export async function addUser(body: any, options: any) {
   return await globalAxios.post(`/users`, body, {
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    skipErrorHandler: true,
+    ...(options || {}),
+  });
+}
+
+export async function updateUser(body: any, options: any) {
+  return await globalAxios.put(`/users/${body?.id}`, body, {
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${token}`,
