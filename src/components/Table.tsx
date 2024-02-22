@@ -41,7 +41,7 @@ const Table = ({ columns, tableData, metaData, loading, tableFn }: tableProps) =
                   {columns.map((colRow: any) => (
                     <td
                       key={colRow.index}
-                      className="border-b border-[#eee] px-3 py-3 dark:border-strokedark xl:pl-10"
+                      className="border-b border-[#eee] px-3 py-3 dark:border-strokedark xl:pl-10 text-sm"
                     >
                       {colRow.render(dataRow[colRow.index], dataRow)}
                     </td>

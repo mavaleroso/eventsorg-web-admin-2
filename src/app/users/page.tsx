@@ -441,20 +441,6 @@ const UsersPage = () => {
     setUserFormData((prevData) => ({ ...prevData, [name]: value }));
   };
 
-  const handleBlur = async (e: any) => {
-    try {
-      // Validate the form data when the field is blurred
-      await userFormSchema.parseAsync(userFormData);
-      // If validation is successful, reset errors
-      setValidationErrors(null);
-    } catch (error) {
-      if (error instanceof ZodError) {
-        // Handle validation errors
-        setValidationErrors(error);
-      }
-    }
-  };
-
   const handleUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -605,7 +591,7 @@ const UsersPage = () => {
       mediaStreamRef.current = null;
     }
   };
-  ``;
+
   const captureFrame = () => {
     if (videoRef.current) {
       const canvas = document.createElement('canvas');
@@ -829,8 +815,7 @@ const UsersPage = () => {
                       placeholder="Please enter"
                       value={userFormData.first_name}
                       onChange={handleInputChange}
-                      onBlur={handleBlur}
-                      className={`w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition  disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white ${validationErrors?.issues.some((issue) => issue.path[0] === 'first_name') ? 'focus:border-danger active:border-danger dark:focus:border-danger border-danger' : 'focus:border-primary active:border-primary dark:focus:border-primary'}`}
+                      className={`w-full rounded-lg border-[1.5px]  bg-transparent px-4 py-2 text-black outline-none transition  disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white ${validationErrors?.issues.some((issue) => issue.path[0] === 'first_name') ? 'focus:border-danger active:border-danger dark:focus:border-danger border-danger' : 'focus:border-primary active:border-primary dark:focus:border-primary border-stroke'}`}
                     />
                     {validationErrors?.errors && validationErrors.errors.length > 0 && (
                       <div className="text-red text-sm">
@@ -853,8 +838,7 @@ const UsersPage = () => {
                       placeholder="Please enter"
                       value={userFormData.last_name}
                       onChange={handleInputChange}
-                      onBlur={handleBlur}
-                      className={`w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition  disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white ${validationErrors?.issues.some((issue) => issue.path[0] === 'last_name') ? 'focus:border-danger active:border-danger dark:focus:border-danger border-danger' : 'focus:border-primary active:border-primary dark:focus:border-primary'}`}
+                      className={`w-full rounded-lg border-[1.5px]  bg-transparent px-4 py-2 text-black outline-none transition  disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white ${validationErrors?.issues.some((issue) => issue.path[0] === 'last_name') ? 'focus:border-danger active:border-danger dark:focus:border-danger border-danger' : 'focus:border-primary active:border-primary dark:focus:border-primary border-stroke'}`}
                     />
                     {validationErrors?.errors && validationErrors.errors.length > 0 && (
                       <div className="text-red text-sm">
@@ -876,7 +860,6 @@ const UsersPage = () => {
                       placeholder="Please enter"
                       value={userFormData.middle_name}
                       onChange={handleInputChange}
-                      onBlur={handleBlur}
                       className="w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                     />
                   </div>
@@ -888,7 +871,6 @@ const UsersPage = () => {
                       name="suffix"
                       value={userFormData.suffix || ''}
                       onChange={handleInputChange}
-                      onBlur={handleBlur}
                       className="w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                     >
                       <option value="" className="text-opacity-65">
@@ -912,7 +894,6 @@ const UsersPage = () => {
                       placeholder="Please enter"
                       value={userFormData.nickname}
                       onChange={handleInputChange}
-                      onBlur={handleBlur}
                       className="w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                     />
                   </div>
@@ -925,9 +906,7 @@ const UsersPage = () => {
                       name="gender"
                       value={userFormData.gender || ''}
                       onChange={handleInputChange}
-                      onBlur={handleBlur}
-                      className={`w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition  disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white ${validationErrors?.issues.some((issue) => issue.path[0] === 'gender') ? 'focus:border-danger active:border-danger dark:focus:border-danger border-danger' : 'focus:border-primary active:border-primary dark:focus:border-primary'}`}
-                      // className="w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                      className={`w-full rounded-lg border-[1.5px]  bg-transparent px-4 py-2 text-black outline-none transition  disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white ${validationErrors?.issues.some((issue) => issue.path[0] === 'gender') ? 'focus:border-danger active:border-danger dark:focus:border-danger border-danger' : 'focus:border-primary active:border-primary dark:focus:border-primary border-stroke'}`}
                     >
                       <option value="" className="text-opacity-65">
                         Please select
@@ -956,7 +935,6 @@ const UsersPage = () => {
                       placeholder="Please enter"
                       value={userFormData.birthdate}
                       onChange={handleInputChange}
-                      onBlur={handleBlur}
                       className="w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                     />
                   </div>
@@ -1048,8 +1026,7 @@ const UsersPage = () => {
                       placeholder="Please enter"
                       value={userFormData.viber_no}
                       onChange={handleInputChange}
-                      onBlur={handleBlur}
-                      className={`w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition  disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white ${validationErrors?.issues.some((issue) => issue.path[0] === 'viber_no') ? 'focus:border-danger active:border-danger dark:focus:border-danger border-danger' : 'focus:border-primary active:border-primary dark:focus:border-primary'}`}
+                      className={`w-full rounded-lg border-[1.5px]  bg-transparent px-4 py-2 text-black outline-none transition  disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white ${validationErrors?.issues.some((issue) => issue.path[0] === 'viber_no') ? 'focus:border-danger active:border-danger dark:focus:border-danger border-danger' : 'focus:border-primary active:border-primary dark:focus:border-primary border-stroke'}`}
                     />
                     {validationErrors?.errors && validationErrors.errors.length > 0 && (
                       <div className="text-red text-sm">
@@ -1070,7 +1047,6 @@ const UsersPage = () => {
                       name="email"
                       value={userFormData.email}
                       onChange={handleInputChange}
-                      onBlur={handleBlur}
                       placeholder="Please enter"
                       className="w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                     />
@@ -1086,8 +1062,7 @@ const UsersPage = () => {
                       placeholder="Please enter"
                       value={userFormData.password}
                       onChange={handleInputChange}
-                      onBlur={handleBlur}
-                      className={`w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition  disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white ${validationErrors?.issues.some((issue) => issue.path[0] === 'password') ? 'focus:border-danger active:border-danger dark:focus:border-danger border-danger' : 'focus:border-primary active:border-primary dark:focus:border-primary'}`}
+                      className={`w-full rounded-lg border-[1.5px]  bg-transparent px-4 py-2 text-black outline-none transition  disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white ${validationErrors?.issues.some((issue) => issue.path[0] === 'password') ? 'focus:border-danger active:border-danger dark:focus:border-danger border-danger' : 'focus:border-primary active:border-primary dark:focus:border-primary border-stroke'}`}
                     />
                     {validationErrors?.errors && validationErrors.errors.length > 0 && (
                       <div className="text-red text-sm">
@@ -1109,7 +1084,6 @@ const UsersPage = () => {
                       placeholder="Please enter"
                       value={userFormData.confirm_password}
                       onChange={handleInputChange}
-                      onBlur={handleBlur}
                       className="w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                     />
                   </div>
@@ -1123,7 +1097,6 @@ const UsersPage = () => {
                       placeholder="Please enter"
                       value={userFormData.membership_date}
                       onChange={handleInputChange}
-                      onBlur={handleBlur}
                       className="w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                     />
                   </div>
@@ -1213,7 +1186,6 @@ const UsersPage = () => {
                       name="status"
                       value={userFormData.status || ''}
                       onChange={handleInputChange}
-                      onBlur={handleBlur}
                       className="w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                     >
                       <option value="" className="text-opacity-65">
@@ -1232,7 +1204,6 @@ const UsersPage = () => {
                       name="position"
                       value={userFormData.position || ''}
                       onChange={handleInputChange}
-                      onBlur={handleBlur}
                       className="w-full rounded-lg border-[1.5px] border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary active:border-primary disabled:cursor-default disabled:bg-whiter dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                     >
                       <option value="" className="text-opacity-65">
@@ -1302,6 +1273,9 @@ const UsersPage = () => {
               <button
                 onClick={() => {
                   setModalState(true);
+                  setValidationErrors(null);
+                  setUserFormData(initialFormData);
+                  setIsNew(true);
                 }}
                 className="bg-primary text-white rounded inline-flex px-4 py-2 hover:bg-opacity-50"
               >
