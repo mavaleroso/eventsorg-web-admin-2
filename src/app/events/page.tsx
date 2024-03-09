@@ -72,7 +72,9 @@ const EventsPage = () => {
       title: 'Event name',
       index: 'name',
       render: (dom: any) => {
-        return <h5 className="font-medium text-black dark:text-white">{dom || '-'}</h5>;
+        return <a onClick={() => {
+          router.push(`/checkin?event_id=${dom}`);
+        }} className="font-bold text-primary cursor-pointer">{dom || '-'}</a>;
       },
     },
     {

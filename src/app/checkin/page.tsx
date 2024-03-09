@@ -32,8 +32,7 @@ const CheckinPage = () => {
   const [delay, setDelay] = useState(100);
   const [cameraOption, setCameraOption] = useState('');
   const [isScanning, setIsScanning] = useState(false);
-  const [ocrModalState, setOcrModalState] = useState(false);
-  const [ocr, setOcr] = useState('');
+  const [isOcr, setIsOcr] = useState(false);
   const [userInfo, setuserInfo] = useState([]);
   const [formFilterData, setFormFilterData] = useState({
     eventId: null,
@@ -147,7 +146,7 @@ const CheckinPage = () => {
     }
   };
 
-  const handleAttendance = async (data: any) => {
+  const handleAttendance = (data: any) => {
     setIsScanning(true);
 
     let payload = {
@@ -155,31 +154,38 @@ const CheckinPage = () => {
       id_no: data,
     };
 
-    try {
-      let res = await postAttendance(payload);
+    postAttendance(payload)
+    .then((res) => {
       setuserInfo(res?.data?.data);
-      // message.success('Attendance saved.');
-      // setResult(null);
+      toast.success('Attendance saved.');
       handleGetEvents({
         start_date: moment().format('YYYY-MM-DD'),
         end_date: moment().format('YYYY-MM-DD'),
       });
-    } catch (error) {
+    }).catch((error) => {
       console.log(error);
-      // message.error(error?.response?.data?.message);
-    }
-    setIsScanning(false);
-    setCameraOption('QR');
+      toast.error(error?.response?.data?.message);
+    }).finally(() => {
+      setIsScanning(false);
+      setCameraOption('QR');
+    })
   };
 
   useEffect(() => {
-    handleGetEvents({
-      start_date: moment().format('YYYY-MM-DD'),
-      end_date: moment().format('YYYY-MM-DD'),
-    });
-  }, []);
+    console.log(`start scan ${isOcr}`)
 
-  const captureFrame = async () => {
+    const intervalId = setInterval(() => {
+        if (isOcr) {
+          setTimeout(captureFrame, 1500);
+        } else {
+          clearInterval(intervalId);
+        }
+    }, 5000);
+  
+    return () => clearInterval(intervalId);
+  }, [isOcr])
+
+  const captureFrame = () => {
     var fxCanvas = null;
     var texture = null;
     var canvas = document.querySelector('canvas');
@@ -202,64 +208,23 @@ const CheckinPage = () => {
         .update();
 
       console.log('scanning...');
+      toast.dismiss();
       toast.loading('OCR Scanning...');
 
       Tesseract.recognize(fxCanvas.toDataURL()).then(function (result) {
         const filteredText = result ? result.data.text.replace(/[^A-Z0-9]/g, '') : '';
         console.log(`done: ${filteredText}`);
         toast.dismiss();
-        setOcr(filteredText);
-        if (filteredText.length > 1) {
-          setOcrModalState(true);
-        } else {
-          captureFrame();
+        if (filteredText.length > 3) {
+          handleAttendance(filteredText);
         }
       });
     }
   };
 
-  const handleOCRModal = (state: boolean) => {
-    setOcrModalState(state);
-  };
-
   return (
     <DefaultLayout>
       <Toaster position="top-center" reverseOrder={false} />
-      <Modal
-        modalState={ocrModalState}
-        modalFn={handleOCRModal}
-        close={false}
-        modalWidth="w-full max-w-sm"
-      >
-        <Dialog.Title
-          as="h3"
-          className="text-lg font-medium leading-6 text-black dark:text-white mb-5"
-        >
-          Extracted OCR plate number
-        </Dialog.Title>
-        <h1 className="text-title-md font-bold text-black">{ocr}</h1>
-
-        <div className="mt-5 flex items-center justify-end gap-2">
-          <button
-            className="bg-primary text-white px-4 py-2 rounded hover:opacity-75"
-            onClick={() => {
-              setOcrModalState(false);
-              captureFrame();
-            }}
-          >
-            Continue
-          </button>
-          <button
-            className="bg-slate-200 text-black px-4 py-2 rounded hover:opacity-75"
-            onClick={() => {
-              setOcrModalState(false);
-              toast.error('OCR scanning stopped');
-            }}
-          >
-            stop
-          </button>
-        </div>
-      </Modal>
       <Modal
         modalState={modalState}
         modalFn={handleModal}
@@ -320,45 +285,54 @@ const CheckinPage = () => {
                   <button
                     onClick={() => {
                       captureFrame();
-                      toast.success('OCR scanning started');
+                      if (isOcr) {
+                        setIsOcr(false);
+                        toast.dismiss();
+                        toast.error('OCR scanning stopped');
+                      } else {
+                        setIsOcr(true);
+                        toast.success('OCR scanning started');
+                      }
                     }}
-                    className="bg-slate-200 font-semibold hover:opacity-70 text-black rounded-md px-4 py-2 text-sm"
+                    className={` font-semibold hover:opacity-70 rounded-md px-4 py-2 text-sm ${isOcr ? 'bg-primary text-white' : 'bg-slate-200 text-black'}`}
                   >
                     OCR
                   </button>
                 </div>
-
-                <div className="w-40 h-40 bg-slate-100 rounded-lg border border-dashed mx-auto">
-                  {cameraOption == 'QR' ? (
-                    //@ts-ignore
-                    <QrReader
-                      delay={delay}
-                      //style={previewStyle}
-                      onScan={(data: any) => {
-                        handleScan(data);
-                      }}
-                      style={{ width: '100%', height: '100%' }}
-                      onError={() => {}}
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center content-center">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        strokeWidth={1.5}
-                        stroke="currentColor"
-                        className="w-18 h-18"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z"
-                        />
-                      </svg>
-                    </div>
-                  )}
-                </div>
+                {isScanning ? 
+                  <h2 className='font-semibold text-center text-black dark:text-white'>Scanning...</h2>
+                  : 
+                  <div className="w-40 h-40 bg-slate-100 rounded-lg border border-dashed mx-auto">
+                    {cameraOption == 'QR' ? 
+                      <QrReader
+                        delay={delay}
+                        //style={previewStyle}
+                        onScan={(data: any) => {
+                          handleScan(data);
+                        }}
+                        style={{ width: '100%', height: '100%' }}
+                        onError={() => {}}
+                      /> : 
+                      <div className="flex h-full items-center justify-center content-center">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          strokeWidth={1.5}
+                          stroke="currentColor"
+                          className="w-18 h-18"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z"
+                          />
+                        </svg>
+                      </div>
+                    }
+                  </div>    
+                }
+                
               </div>
               <div className="p-4 border border-slate-200 my-4 rounded-md grid grid-cols-2 gap-4">
                 {/* <img
